@@ -5,9 +5,19 @@
 # Commits will be authored by "o1".
 #
 # Usage:
-#   ./git-backup.sh [BACKUP_BRANCH]
+#   ./git-backup.sh [--push] [BACKUP_BRANCH]
 #
-# If BACKUP_BRANCH is not specified, defaults to backup/<currentBranch>-<commitSha>.
+# If BACKUP_BRANCH is not specified, defaults to backup/<currentBranch>.
+#
+# Options:
+#   --push    Push the backup branch immediately after creating the commit.
+#   -h, --help  Show this help message.
+#
+# Examples:
+#   ./git-backup.sh
+#   ./git-backup.sh my-backup-branch
+#   ./git-backup.sh --push
+#   ./git-backup.sh --push my-backup-branch
 #
 
 set -e  # Exit on error
@@ -20,20 +30,46 @@ cleanup() {
 trap cleanup EXIT
 
 usage() {
-  echo "Usage: $(basename "$0") [BACKUP_BRANCH]"
+  echo "Usage: $(basename "$0") [--push] [BACKUP_BRANCH]"
   echo
-  echo "If BACKUP_BRANCH is not specified, defaults to backup/<currentBranch>-<commitSha>."
+  echo "If BACKUP_BRANCH is not specified, defaults to backup/<currentBranch>."
+  echo
+  echo "Options:"
+  echo "  --push      Push the backup branch immediately after creating the commit."
+  echo "  -h, --help  Show this help message."
   echo
   echo "Examples:"
   echo "  $(basename "$0")"
   echo "  $(basename "$0") my-backup-branch"
+  echo "  $(basename "$0") --push"
+  echo "  $(basename "$0") --push my-backup-branch"
 }
 
-# Parse arguments
-if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-  usage
-  exit 0
-fi
+# Default flag
+should_push=false
+
+# We'll collect positional args here
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --push)
+      should_push=true
+      shift
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# Restore positional arguments
+set -- "${POSITIONAL_ARGS[@]}"
 
 if [ $# -gt 1 ]; then
   echo "Error: Too many arguments." >&2
@@ -63,8 +99,6 @@ fi
 if git rev-parse --verify "$BACKUP_BRANCH" >/dev/null 2>&1; then
   PARENT_COMMIT="$BACKUP_BRANCH"
 else
-  # If HEAD doesn't exist (brand new repo with no commits), this might fail.
-  # You could handle that by omitting -p or requiring an initial commit.
   PARENT_COMMIT="HEAD"
 fi
 
@@ -96,11 +130,18 @@ COMMIT_SHA=$(echo "$COMMIT_MESSAGE" | git commit-tree "$TREE_SHA" -p "$PARENT_CO
 # 7) Update (or create) the backup branch to point at the new commit
 git update-ref "refs/heads/$BACKUP_BRANCH" "$COMMIT_SHA"
 
-# Set remote to the origin of the parent branch
-PARENT_REMOTE=$(git config "branch.${PARENT_BRANCH}.remote")
-if [[ $PARENT_REMOTE ]]; then
-  PARENT_REMOTE_PREFIX=$(git config user.name | sed 's/ /./g' | tr '[:upper:]' '[:lower:]')
-  git branch "--set-upstream-to=$PARENT_REMOTE${PARENT_REMOTE_PREFIX:+/$PARENT_REMOTE_PREFIX}/$BACKUP_BRANCH" "$BACKUP_BRANCH"
+echo "Created backup commit $COMMIT_SHA on branch '$BACKUP_BRANCH'."
+
+# Optionally set upstream, if we can find a remote for the current branch
+PARENT_REMOTE=$(git config "branch.$CURRENT_BRANCH.remote" 2>/dev/null || true)
+
+if [ -n "$PARENT_REMOTE" ]; then
+  # If the current branch has a remote, we can set the backup branch upstream to the same remote
+  git branch --set-upstream-to="$PARENT_REMOTE/$BACKUP_BRANCH" "$BACKUP_BRANCH" 2>/dev/null || true
 fi
 
-echo "Created backup commit $COMMIT_SHA on branch '$BACKUP_BRANCH'."
+# If --push was passed, push the new branch
+if [ "$should_push" = true ]; then
+  echo "Pushing '$BACKUP_BRANCH' to remote..."
+  git push "${PARENT_REMOTE:-origin}" "$BACKUP_BRANCH"
+fi
