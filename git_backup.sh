@@ -122,7 +122,7 @@ TREE_SHA=$(git write-tree)
 # 6) Create a commit object, referencing the parent commit.
 #    We'll set the committer to "o1".
 export GIT_COMMITTER_NAME="o1"
-export GIT_COMMITTER_EMAIL="o1@backup"
+#export GIT_COMMITTER_EMAIL="o1@backup"
 
 COMMIT_MESSAGE="Backup on $(date)"
 COMMIT_SHA=$(echo "$COMMIT_MESSAGE" | git commit-tree "$TREE_SHA" -p "$PARENT_COMMIT")
