@@ -137,11 +137,14 @@ PARENT_REMOTE=$(git config "branch.$CURRENT_BRANCH.remote" 2>/dev/null || true)
 
 if [ -n "$PARENT_REMOTE" ]; then
   # If the current branch has a remote, we can set the backup branch upstream to the same remote
-  git branch --set-upstream-to="$PARENT_REMOTE/$BACKUP_BRANCH" "$BACKUP_BRANCH" 2>/dev/null || true
+  PARENT_REMOTE_PREFIX=$(git config user.name | sed 's/ /./g' | tr '[:upper:]' '[:lower:]')
+  BACKUP_REMOTE_BRANCH="${PARENT_REMOTE_PREFIX:+$PARENT_REMOTE_PREFIX/}$BACKUP_BRANCH"
+  git config "branch.$BACKUP_BRANCH.remote" "$PARENT_REMOTE"
+  git config "branch.$BACKUP_BRANCH.merge" "refs/heads$BACKUP_REMOTE_BRANCH"
 fi
 
 # If --push was passed, push the new branch
 if [ "$should_push" = true ]; then
   echo "Pushing '$BACKUP_BRANCH' to remote..."
-  git push "${PARENT_REMOTE:-origin}" "$BACKUP_BRANCH"
+  git push --set-upstream "$PARENT_REMOTE" "$BACKUP_BRANCH:$BACKUP_REMOTE_BRANCH"
 fi
