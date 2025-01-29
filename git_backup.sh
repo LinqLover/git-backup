@@ -23,8 +23,11 @@
 set -e  # Exit on error
 
 cleanup() {
-  unset GIT_INDEX_FILE
-  rm -f "${TEMP_INDEX:-}" 2>/dev/null || true
+  if [[ $TEMP_INDEX ]]; then
+    rm -f "$TEMP_INDEX" 2>/dev/null || true
+  else
+    rm -f .git/index
+  fi
 }
 
 trap cleanup EXIT
@@ -103,23 +106,22 @@ else
 fi
 
 # 2) Create a temporary index file so we don't disturb the real one
-TEMP_INDEX="$(mktemp)"
 if [ -f .git/index ]; then
+  TEMP_INDEX="$(mktemp)"
   cp .git/index "$TEMP_INDEX"
+  export GIT_INDEX_FILE="$TEMP_INDEX"
 else
-  touch "$TEMP_INDEX"
+  # git write-tree does not work with empty GIT_INDEX_FILE, use default index instead and deleting it later
+  TEMP_INDEX=""
 fi
 
-# 3) Point Git to the temporary index
-export GIT_INDEX_FILE="$TEMP_INDEX"
-
-# 4) Stage all changes into the temporary index
+# 3) Stage all changes into the temporary index
 git add -A
 
-# 5) Write the tree object from the temporary index
+# 4) Write the tree object from the temporary index
 TREE_SHA=$(git write-tree)
 
-# 6) Create a commit object, referencing the parent commit.
+# 5) Create a commit object, referencing the parent commit.
 #    We'll set the committer to "o1".
 export GIT_COMMITTER_NAME="o1"
 #export GIT_COMMITTER_EMAIL="o1@backup"
@@ -127,7 +129,7 @@ export GIT_COMMITTER_NAME="o1"
 COMMIT_MESSAGE="Backup on $(date)"
 COMMIT_SHA=$(echo "$COMMIT_MESSAGE" | git commit-tree "$TREE_SHA" -p "$PARENT_COMMIT")
 
-# 7) Update (or create) the backup branch to point at the new commit
+# 6) Update (or create) the backup branch to point at the new commit
 git update-ref "refs/heads/$BACKUP_BRANCH" "$COMMIT_SHA"
 
 echo "Created backup commit $COMMIT_SHA on branch '$BACKUP_BRANCH'."
