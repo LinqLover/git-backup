@@ -147,6 +147,9 @@ fi
 
 # If --push was passed, push the new branch
 if [ "$should_push" = true ]; then
+  if [ -z "$BACKUP_REMOTE_BRANCH" ]; then
+    echo "Warning: Backup remote branch cannot be determined, probably the original branch has not yet been pushed?" >&2
+  fi
   echo "Pushing '$BACKUP_BRANCH' to remote..."
   git push --set-upstream "$PARENT_REMOTE" "$BACKUP_BRANCH:$BACKUP_REMOTE_BRANCH"
 fi
