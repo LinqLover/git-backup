@@ -23,7 +23,7 @@ To github.com:LinqLover/git-backup.git
 ## Synopsis
 
 ```
-Usage: git_backup.sh [--push] [BACKUP_BRANCH]
+Usage: git-backup.sh [--push] [BACKUP_BRANCH]
 Backs up *all* unstaged changes into a new commit on a dedicated backup branch
 without altering your real index or working directory.
 
@@ -34,8 +34,8 @@ Options:
   -h, --help  Show this help message.
 
 Examples:
-  git_backup.sh
-  git_backup.sh my-backup-branch
-  git_backup.sh --push
-  git_backup.sh --push my-backup-branch
+  git-backup.sh
+  git-backup.sh my-backup-branch
+  git-backup.sh --push
+  git-backup.sh --push my-backup-branch
 ```
