@@ -1,24 +1,4 @@
 #!/usr/bin/env bash
-#
-# Backs up *all* unstaged changes into a new commit on a dedicated backup branch
-# without altering your real index or working directory.
-# Commits will be authored by "o1".
-#
-# Usage:
-#   ./git-backup.sh [--push] [BACKUP_BRANCH]
-#
-# If BACKUP_BRANCH is not specified, defaults to backup/<currentBranch>.
-#
-# Options:
-#   --push    Push the backup branch immediately after creating the commit.
-#   -h, --help  Show this help message.
-#
-# Examples:
-#   ./git-backup.sh
-#   ./git-backup.sh my-backup-branch
-#   ./git-backup.sh --push
-#   ./git-backup.sh --push my-backup-branch
-#
 
 set -e  # Exit on error
 
@@ -34,6 +14,8 @@ trap cleanup EXIT
 
 usage() {
   echo "Usage: $(basename "$0") [--push] [BACKUP_BRANCH]"
+  echo "Backs up *all* unstaged changes into a new commit on a dedicated backup branch"
+  echo "without altering your real index or working directory."
   echo
   echo "If BACKUP_BRANCH is not specified, defaults to backup/<currentBranch>."
   echo
@@ -122,9 +104,8 @@ git add -A
 TREE_SHA=$(git write-tree)
 
 # 5) Create a commit object, referencing the parent commit.
-#    We'll set the committer to "o1".
-export GIT_COMMITTER_NAME="o1"
-#export GIT_COMMITTER_EMAIL="o1@backup"
+export GIT_COMMITTER_NAME="git-backup"
+#export GIT_COMMITTER_EMAIL="git@backup"
 
 COMMIT_MESSAGE="Backup on $(date)"
 COMMIT_SHA=$(echo "$COMMIT_MESSAGE" | git commit-tree "$TREE_SHA" -p "$PARENT_COMMIT")
